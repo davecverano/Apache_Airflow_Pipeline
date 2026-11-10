@@ -1,26 +1,50 @@
-# Airflow Pipeline
+# Airflow Pipeline on Google Cloud Composer
 
-### Finished Project Demo
+A practice data pipeline built with Apache Airflow on Google Cloud Composer. It downloads a CSV of Spotify songs, loads it into BigQuery, runs an analysis query and exports the result back to Cloud Storage.
 
-![Dags_example](https://user-images.githubusercontent.com/49330823/180494629-e4ac049b-dd49-416e-9a6c-e7200607b98c.JPG)
-![Airflow_tree_view](https://user-images.githubusercontent.com/49330823/180496356-58840724-9034-4b4f-b233-3ce284b5e393.JPG)
+![DAG runs](https://user-images.githubusercontent.com/49330823/180494629-e4ac049b-dd49-416e-9a6c-e7200607b98c.JPG)
+![Airflow tree view](https://user-images.githubusercontent.com/49330823/180496356-58840724-9034-4b4f-b233-3ce284b5e393.JPG)
 
-Note: As you can tell, I ran into alot of errors while making it 😆
+*(Yes, there were a lot of failed runs on the way. 😆)*
 
-### Intro
+## How it works
 
-This is a personal project to practice creating DAGS in Google Composer.
+The `composer_test_dag` DAG runs daily:
 
-The goal of this task is to create a pipeline in Apache Airflow that:
-1. Creates a bucket in Google Cloud Storage for a particular project
-2. Loads information from a url that downloads a file such as a .csv file from a website like kaggle
-3. Stores the file into the bucket in Google Cloud Storage
-4. Loads the file into BigQuery and performs desired queries onto the dataset
-5. Transfers queries into local computer
+1. **create_bucket**: creates the GCS bucket if it doesn't exist (`scripts/create_bucket.sh`)
+2. **url_to_gcs**: streams the CSV from a URL into the bucket (`scripts/url_to_gcs.sh`)
+3. **load_query_table**: queries BigQuery for the most popular non-pop artist per year and writes the result to `demo_dataset.demo_table`
+4. **transfer_table**: exports that table to `gs://<bucket>/dags/data/out_data.csv`
 
-### Tools
+`data/in_data.csv` is the sample input (2,000 songs, 1999–2020) and `data/out_data.csv` is the output it produced.
 
-Apache Airflow  
-Google Cloud  
-Bash  
-Python  
+`airflow_monitoring.py` is the liveness-check DAG that Cloud Composer adds to every environment.
+
+## Repository layout
+
+```
+DAG.py                  the pipeline DAG
+airflow_monitoring.py   Composer's default health-check DAG
+scripts/                bash helpers called by the DAG
+data/                   sample input and output
+```
+
+## Setup
+
+1. Create a Cloud Composer (Airflow 1.10) environment.
+2. Load `data/in_data.csv` into a BigQuery table, e.g. `example1.spotify_songs`.
+3. Set these Airflow environment variables on the Composer environment:
+
+   | Variable | Example |
+   |---|---|
+   | `project_name` | `my-gcp-project` |
+   | `bucket_name` | `my-pipeline-bucket` |
+   | `env_dags_path` | `/home/airflow/gcs/dags` |
+   | `data_url` | URL of the CSV to download |
+   | `source_table` | `example1.spotify_songs` |
+
+4. Upload `DAG.py` and the `scripts/` folder to the environment's `dags/` bucket.
+
+## Built with
+
+Apache Airflow · Google Cloud Composer · BigQuery · Cloud Storage · Bash · Python
